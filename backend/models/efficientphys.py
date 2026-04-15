@@ -20,13 +20,21 @@ class EfficientPhysModel(BaseRPPGModel):
             model = EfficientPhys(frame_depth=10, img_size=72)
             if os.path.exists(path):
                 state_dict = torch.load(path, map_location=self.device)
+                
+                # Handle DataParallel wrapper: checkpoint has "module." prefix but model doesn't
+                # This is a common issue when checkpoints are saved from DataParallel models
+                if any(k.startswith("module.") for k in state_dict.keys()):
+                    print("[EfficientPhys] Detected DataParallel checkpoint, removing 'module.' prefix...")
+                    state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
+                
                 model.load_state_dict(state_dict)
+                print(f"[EfficientPhys] ✓ Model loaded successfully from {path}")
             else:
-                print(f"Warning: EfficientPhys checkpoint not found at {path}")
+                print(f"[EfficientPhys] Warning: checkpoint not found at {path}, using untrained model")
             model = model.to(self.device)
             return model
         except Exception as e:
-            print(f"Failed to load EfficientPhys model: {e}")
+            print(f"[EfficientPhys] ✗ Failed to load model: {e}")
             raise e
 
     @torch.no_grad()
